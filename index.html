@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Reminder</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial;
+    background: linear-gradient(180deg, #dff4ff, #f6fbff);
+}
+
+.container {
+    max-width: 420px;
+    margin: auto;
+    padding: 20px;
+}
+
+.card {
+    background: white;
+    padding: 18px;
+    border-radius: 16px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+}
+
+h2 {
+    text-align: center;
+    color: #3aa6d8;
+    margin-bottom: 10px;
+}
+
+input, button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 10px;
+    border: 1px solid #d0e7f5;
+    font-size: 15px;
+}
+
+.quick {
+    display: flex;
+    gap: 6px;
+}
+
+.quick button {
+    background: #e9f7ff;
+    border: none;
+}
+
+.add-btn {
+    background: #59c6ff;
+    color: white;
+    border: none;
+    font-weight: bold;
+}
+
+.add-btn:hover {
+    background: #3ab6f3;
+}
+
+ul {
+    padding: 0;
+}
+
+li {
+    list-style: none;
+    background: white;
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.task-text {
+    font-weight: bold;
+}
+
+.task-time {
+    font-size: 13px;
+    color: #777;
+}
+
+.delete-btn {
+    margin-top: 6px;
+    background: #ffd6d6;
+    border: none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <div class="card">
+        <h2>My Reminder</h2>
+
+        <input id="task" placeholder="สิ่งที่ต้องทำ">
+
+        <input type="date" id="date">
+
+        <div class="quick">
+            <button onclick="setDay(0)">วันนี้</button>
+            <button onclick="setDay(1)">พรุ่งนี้</button>
+            <button onclick="setDay(2)">มะรืน</button>
+        </div>
+
+        <input type="time" id="time">
+
+        <button class="add-btn" onclick="addTask()">เพิ่มการแจ้งเตือน</button>
+    </div>
+
+    <ul id="list"></ul>
+</div>
+
+<script>
+let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+
+// ขอสิทธิ์แจ้งเตือน
+if ("Notification" in window && Notification.permission !== "granted") {
+    Notification.requestPermission();
+}
+
+function saveTasks() {
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+}
+
+function setDay(offset) {
+    let d = new Date();
+    d.setDate(d.getDate() + offset);
+    document.getElementById("date").value = d.toISOString().split("T")[0];
+}
+
+function addTask() {
+    let text = document.getElementById("task").value;
+    let date = document.getElementById("date").value;
+    let time = document.getElementById("time").value;
+
+    if (!text || !date || !time) {
+        alert("กรอกข้อมูลให้ครบ");
+        return;
+    }
+
+    let datetime = new Date(date + "T" + time);
+
+    let task = {
+        id: Date.now(),
+        text: text,
+        time: datetime.getTime()
+    };
+
+    tasks.push(task);
+    saveTasks();
+    scheduleNotification(task);
+    showTasks();
+
+    document.getElementById("task").value = "";
+}
+
+function deleteTask(id) {
+    tasks = tasks.filter(t => t.id !== id);
+    saveTasks();
+    showTasks();
+}
+
+function showTasks() {
+    let list = document.getElementById("list");
+    list.innerHTML = "";
+
+    tasks.sort((a,b) => a.time - b.time);
+
+    tasks.forEach(task => {
+        let li = document.createElement("li");
+        let d = new Date(task.time);
+
+        li.innerHTML = `
+            <div class="task-text">${task.text}</div>
+            <div class="task-time">${d.toLocaleString()}</div>
+            <button class="delete-btn" onclick="deleteTask(${task.id})">ลบ</button>
+        `;
+
+        list.appendChild(li);
+    });
+}
+
+function scheduleNotification(task) {
+    let delay = task.time - new Date().getTime();
+    if (delay <= 0) return;
+
+    setTimeout(() => {
+        showNotification(task.text);
+    }, delay);
+}
+
+function showNotification(text) {
+    if (Notification.permission === "granted") {
+        new Notification("Reminder", { body: text });
+    }
+
+    // เสียง
+    let audio = new Audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg");
+    audio.play();
+}
+
+// ตั้งแจ้งเตือนใหม่ตอนเปิดเว็บ
+tasks.forEach(task => {
+    scheduleNotification(task);
+});
+
+showTasks();
+</script>
+
+</body>
+</html>
